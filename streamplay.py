@@ -2,7 +2,9 @@ import libtorrent as lt
 import logging
 import time
 import os
+import pprint
 from subprocess import *
+import thread
 
 class StreamPlay(object):
     """Class that is responsible for playing stream mp3, and storing it """
@@ -29,7 +31,7 @@ class StreamPlay(object):
     def select_file(self):
         """Currently this selects first file, of list, it should be more smarter in future """
         files = self._info.files()
-        f = files[0]
+        f = files[2]
         logger.debug('Selected file: "%s" with size %d MB',f.path, f.size/1024/1024)
         self._selectedFile = f
         return f
@@ -44,36 +46,66 @@ class StreamPlay(object):
         for i in range(self._info.num_pieces()):
             self._h.piece_priority(i,1)
         
-        pi = self.get_file_piece_info()
-        for i in range(pi[0], pi[1]):
+        pieces = self.get_file_piece_range()
+        pieces = (pieces[0],pieces[0]+10)
+
+        for i in range(*pieces):
             self._h.piece_priority(i,7)
 
+
+        thread.start_new_thread(self.play_file,())
+
         while (not self._h.status().is_finished):
-            print self._h.status().progress
+            logger.debug('Downloading progress %f %%',self._h.status().progress*100)
+            self.reprioritize_pieces()
             time.sleep(1)
 
-        self.play_file()
         return h
 
-    def get_file_piece_info(self):
-        file = self._selectedFile
-        piece_length = self._info.piece_length()
-        return (file.offset/piece_length, (file.offset+file.size)/piece_length, 
-            file.offset%piece_length, (file.offset+file.size)%piece_length)
+    def reprioritize_pieces(self):
+        pieceperite=10
+        h = self._h
+        piecestart,pieceend = self.get_file_piece_range()
+
+        prio = h.piece_priorities()
+        s = h.status()
+        downloading = 0
+        if len(s.pieces) == 0:
+            return
+
+        #count pieces that are downloading  
+        for piece in range(piecestart,pieceend):
+            if prio[piece] != 0 and s.pieces[piece]==False:
+                downloading = downloading+1
+
+        #pieceperite - pieces per iteration
+        for piece in range(piecestart,pieceend):
+            if prio[piece] == 0 and downloading < piecesperite:
+                logger.debug('Queue: Downloading piece %d',piece)
+                h.piece_priority(piece,1)
+                downloading = downloading+1
+        for piece in range(piecestart,pieceend):
+            if prio[piece] != 0 and s.pieces[piece]==False:
+                logger.debug('Queue: High prio %d',piece)
+                h.piece_priority(piece,7)
+                break
+
 
     def play_file(self):
         outputcmd = 'mplayer -'
         stream = Popen(outputcmd.split(' '), stdin=PIPE).stdin
 
-        pi = self.get_file_piece_info()
+        pieces = self.get_file_piece_range()
+        offsets = self.get_file_piece_offset()
         
         #outputting piece stream to mplayer
-        for piece in range(pi[0],pi[1]+1):
+        for piece in range(*pieces):
+            logger.debug('Writing %d of %d',piece, pieces[1]-pieces[0])
             buf=self.get_piece(piece)
-            if piece==pi[0]:
-                buf = buf[pi[2]:]
-            if piece==pi[1]:
-                buf = buf[:pi[3]]
+            if piece==pieces[0]:
+                buf = buf[offsets[0]:]
+            if piece==pieces[1]:
+                buf = buf[:offsets[1]]
        
             try:
                 stream.write(buf)
@@ -109,6 +141,21 @@ class StreamPlay(object):
                 break
             time.sleep(.1)
 
+    def get_file_piece_range(self):
+        """Returns start and end pieces of file that is selected to play"""
+        file = self._selectedFile
+        piece_length = self._info.piece_length()
+        return (file.offset/piece_length, (file.offset+file.size)/piece_length+1)
+
+    def get_file_piece_offset(self):
+        """Returns offset on start piece and offset on end piece"""
+        file = self._selectedFile
+        piece_length = self._info.piece_length()
+        return (file.offset%piece_length, (file.offset+file.size)%piece_length)
+
+
+
+
 logger = logging.getLogger('StreamPlay')
 logger.setLevel(logging.DEBUG)
 if (len(logger.handlers)==0):
@@ -119,4 +166,4 @@ if (len(logger.handlers)==0):
     logger.addHandler(ch)
 
 testplay = StreamPlay()
-testplay.load_torrent_file('sample/torrent1.torrent');
+testplay.load_torrent_file('sample/torrent2.torrent');
