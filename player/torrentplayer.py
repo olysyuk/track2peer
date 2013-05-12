@@ -2,6 +2,7 @@ import libtorrent as lt
 import logging
 import time
 import os
+import sys
 import pprint
 from subprocess import *
 import thread
@@ -161,10 +162,8 @@ class TorrentPlayer(Player):
             piece = ses.pop_alert()
             if isinstance(piece, lt.read_piece_alert):
                 if piece.piece == i:
-                    #sys.stdout.write(piece.buffer)
                     return piece.buffer
-                else:
-                    print >> sys.stderr,'store somewhere'
+                else: #storing it for futher reads
                     cache[piece.piece] = piece.buffer
                 break
             time.sleep(.1)
