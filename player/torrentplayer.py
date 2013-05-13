@@ -25,6 +25,7 @@ class TorrentPlayer(Player):
     _ses = None #torrent session
     _h = None #torrent file handler
     _play_thread = None
+    _download_progress = -1
 
     max_download_pieces=10
 
@@ -35,7 +36,6 @@ class TorrentPlayer(Player):
             self._torrentFile = filepath
             self._info = lt.torrent_info(self._torrentFile)
             logger.debug('Loaded torrent file: '+filepath);
-            logger.debug('Count of subfiles: %d', len(self._info.files()));
         except IOError:
             raise Exception(filepath + " file doesn't exist")
 
@@ -59,10 +59,12 @@ class TorrentPlayer(Player):
         self._h = self._ses.add_torrent({'ti': self._info, 'save_path': './data'})
         self.init_piece_priority()
         
-        self._play_thread = thread.start_new_thread(self.background_play,())
+        outputcmd = 'mplayer -really-quiet -nolirc -cache 1024 -'   
+        stream_writer = TorrentPlayerBackgroundStream(outputcmd, self._ses, self._h, self.get_file_piece_range(), self.get_file_piece_offset())
+        thread.start_new_thread(stream_writer.write_stream,())
 
         while (not self._h.status().is_finished):
-            logger.debug('Downloading progress %f %%',self._h.status().progress*100)
+            self.update_progress()
             self.update_piece_priority()
             time.sleep(1)
 
@@ -119,14 +121,51 @@ class TorrentPlayer(Player):
         #logger.debug('Download: %d active pieces, (%s) added, #%d is high prio', 
         #    downloading, ','.join(str(x) for x in starting_pieces), high_prio)
 
+    def update_progress(self):
+        """Updates track download progress, currently only ready pieces are counted"""
+        s = self._h.status()
+        file_pieces = self.get_file_piece_range()
+        ready = 0
+        for i in range(*file_pieces):
+            if (s.pieces[i]):
+                ready = ready + 1
+        self._download_progress = ready * 1.0 / (file_pieces[1] - 1 - file_pieces[0])
 
-    def background_play(self):
-        outputcmd = 'mplayer -really-quiet -'
-        stream = Popen(outputcmd.split(' '), stdin=PIPE).stdin
+    def get_file_piece_range(self):
+        """Returns start and end pieces of file that is selected to play"""
+        file = self._selectedFile
+        piece_length = self._info.piece_length()
+        return (file.offset/piece_length, (file.offset+file.size)/piece_length+1)
 
-        pieces = self.get_file_piece_range()
-        offsets = self.get_file_piece_offset()
+    def get_file_piece_offset(self):
+        """Returns offset on start piece and offset on end piece"""
+        file = self._selectedFile
+        piece_length = self._info.piece_length()
+        return (file.offset%piece_length, (file.offset+file.size)%piece_length)
+
+
+class TorrentPlayerBackgroundStream:
+    _h = None
+    _ses = None
+    _outputcmd = None
+    _pieces = None #tuple start,end piece
+    _offsets = None #tuple offset on start and end piece
+ 
+    def __init__(self, outputcmd, torrent_session, torrent_handle, pieces, offsets):
+        self._outputcmd = outputcmd
+        self._ses = torrent_session
+        self._h = torrent_handle
+
+        self._pieces = pieces
+        self._offsets = offsets
+
+    def write_stream(self):
+        stream = Popen(self._outputcmd.split(' '), stdin=PIPE, stdout=None, stderr=None).stdin #--not sure why this is not always working
         
+        #logger.debug('Player started receiving data')
+        pieces = self._pieces
+        offsets = self._offsets
+
         #outputting piece stream to mplayer
         for piece in range(*pieces):
             #logger.debug('Writing %d of %d',piece, pieces[1]-pieces[0])
@@ -143,6 +182,7 @@ class TorrentPlayer(Player):
 
     cache = {}
     def get_piece(self,i):
+        """Listends while peace is ready and outputs it"""
         h = self._h
         ses = self._ses
         cache = self.cache
@@ -157,6 +197,7 @@ class TorrentPlayer(Player):
             if s.pieces[i]==True:
                 break
             time.sleep(.1)
+
         h.read_piece(i)
         while True:
             piece = ses.pop_alert()
@@ -167,19 +208,6 @@ class TorrentPlayer(Player):
                     cache[piece.piece] = piece.buffer
                 break
             time.sleep(.1)
-
-    def get_file_piece_range(self):
-        """Returns start and end pieces of file that is selected to play"""
-        file = self._selectedFile
-        piece_length = self._info.piece_length()
-        return (file.offset/piece_length, (file.offset+file.size)/piece_length+1)
-
-    def get_file_piece_offset(self):
-        """Returns offset on start piece and offset on end piece"""
-        file = self._selectedFile
-        piece_length = self._info.piece_length()
-        return (file.offset%piece_length, (file.offset+file.size)%piece_length)
-
 
 
 
