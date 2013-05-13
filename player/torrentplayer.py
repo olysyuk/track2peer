@@ -67,6 +67,7 @@ class TorrentPlayer(Player):
             self.update_progress()
             self.update_piece_priority()
             time.sleep(1)
+        self.update_progress()
 
     def init_piece_priority(self): 
         """Defines initial piece priority to star download selected file"""
@@ -129,7 +130,7 @@ class TorrentPlayer(Player):
         for i in range(*file_pieces):
             if (s.pieces[i]):
                 ready = ready + 1
-        self._download_progress = ready * 1.0 / (file_pieces[1] - 1 - file_pieces[0])
+        self._download_progress = 1.0 if (s.is_finished or s.is_seeding) else ready * 1.0 / (file_pieces[1] - 1 - file_pieces[0])
 
     def get_file_piece_range(self):
         """Returns start and end pieces of file that is selected to play"""

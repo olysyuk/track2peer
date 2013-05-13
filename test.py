@@ -35,5 +35,7 @@ def testplay():
         sys.stdout.flush()
         time.sleep(1)
         print "\r",
-        if (tp._download_progress==1): break
+        if (tp._download_progress==1): 
+            print "File is ready               "
+            break
         pass
