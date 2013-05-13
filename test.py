@@ -35,4 +35,5 @@ def testplay():
         sys.stdout.flush()
         time.sleep(1)
         print "\r",
+        if (tp._download_progress==1): break
         pass
