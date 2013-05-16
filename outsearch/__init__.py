@@ -1,3 +1,3 @@
-import outsearch
+from outsearch import OutSearch
 
-__all__=['outsearch']
+__all__=['OutSearch']

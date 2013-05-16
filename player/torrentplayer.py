@@ -26,10 +26,24 @@ class TorrentPlayer(Player):
     _h = None #torrent file handler
     _play_thread = None
     _download_progress = -1
+    _session_started = False
 
     max_download_pieces=10
 
-    def load_torrent(self, filepath):
+    def load_mli(self, mli):
+        if (mli.magnet):
+            self.start_session()
+            self._h = lt.add_magnet_uri(self._ses, mli.magnet, {'save_path':self.get_save_path()})
+
+            print 'downloading metadata...'
+            while (not self._h.has_metadata()): time.sleep(1)
+            self._info = self._h.get_torrent_info();
+            print 'metadata done...'
+        else:
+            self.log_filepath(mli.torrent)
+        
+
+    def load_filepath(self, filepath):
         try:
             filepath = os.getcwd()+"/"+filepath
             with open(filepath): pass
@@ -54,9 +68,9 @@ class TorrentPlayer(Player):
 
     def play(self):
         """Starts file download and playback"""
-        self._ses = lt.session()
-        self._ses.listen_on(6881, 6891)
-        self._h = self._ses.add_torrent({'ti': self._info, 'save_path': './data'})
+        self.start_session()
+        if (not self._h): #If we added torrent by magnet it's allready here. Should do it more gently in future
+            self._h = self._ses.add_torrent({'ti': self._info, 'save_path': self.get_save_path() })
         self.init_piece_priority()
         
         outputcmd = 'mplayer -really-quiet -nolirc -cache 1024 -'   
@@ -68,6 +82,15 @@ class TorrentPlayer(Player):
             self.update_piece_priority()
             time.sleep(1)
         self.update_progress()
+
+    def start_session(self):
+        if (self._session_started): return
+        self._ses = lt.session()
+        self._ses.listen_on(6881, 6891)
+        self._session_started = True
+
+    def get_save_path(self):
+        return './data'
 
     def init_piece_priority(self): 
         """Defines initial piece priority to star download selected file"""

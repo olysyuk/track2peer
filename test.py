@@ -18,7 +18,7 @@ def testplay():
 
     import player
     tp = player.TorrentPlayer()
-    tp.load_torrent(torrent_files[tf])
+    tp.load_filepath(torrent_files[tf])
 
     subfiles = tp.get_files_list()
     for i,v in enumerate(subfiles):
