@@ -5,4 +5,6 @@ Streaming media player
 
 Try:
 import test
-test.testplay()
+tp=test.play()
+tp.pause()
+tp.stop()

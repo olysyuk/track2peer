@@ -5,7 +5,7 @@ import time
 import thread
 
 
-def testplay():
+def play():
     sample_dir = 'sample/'
     print "Select one of the available files:"
 
@@ -29,6 +29,7 @@ def testplay():
     tp.select_file(sf)
     #tp.play()
     thread.start_new_thread(tp.play,())
+    return tp
 
     while True:
         print repr(round(tp._download_progress*100)).rjust(6),"% is ready ",
