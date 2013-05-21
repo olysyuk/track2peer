@@ -25,11 +25,11 @@ class Track2Peer(object):
 
     def display_play_progress(self):
         while True:
-            print repr(round(self._tp._download_progress*100)).rjust(6),"% is ready ",
+            print repr(round(self._tp.get_download_progress()*100)).rjust(6),"% is ready ",
             sys.stdout.flush()
             time.sleep(1)
             print "\r",
-            if (self._tp._download_progress==1): 
+            if (self._tp.get_download_progress()==1): 
                 print "File is ready               "
                 break
             pass
