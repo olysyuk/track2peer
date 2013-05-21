@@ -97,7 +97,7 @@ class TorrentPlayer(Player):
         self._playQ.put(TorrentPlayerBackgroundStream.MESSAGE_STOP)
 
     def get_download_progress(self):
-        return self._download_manager.download_progress
+        return self._download_manager.download_progress if self._download_manager else -1
 
     def get_play_progress(self):
         return self._player.play_progress
