@@ -1,5 +1,7 @@
 
 
 class Player(object):
-    def play(self):
-        pass
+	"""Manages list playback"""
+
+	def play(self):
+		pass

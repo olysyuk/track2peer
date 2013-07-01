@@ -9,13 +9,13 @@ class Track2Peer(object):
     _os = None
     def search_n_play(self, query):
         self._os = OutSearch()
-        mli = self._os.searchCoarse(query)
+        torrent = self._os.searchCoarse(query) #torrent item instance
         self._tp = TorrentPlayer()
-        self._tp.load_mli(mli)
+        self._tp.load_torrent_item(torrent)
         
-        subfiles = self._tp.get_files_list()
-        for i,v in enumerate(subfiles):
-            print i, ' ', v
+        subfiles = torrent.files
+        for v in subfiles:
+            print v.subfile_no, ' ', v.title
 
         sf = int(raw_input("Please enter subfile number: "))
 

@@ -3,8 +3,10 @@ track2peer
 
 Streaming media player
 
-Try:
-import test
-tp=test.play()
-tp.pause()
-tp.stop()
+Example
+>python test.py
+
+Example 2:
+from track2peer import Track2Peer
+tp = Track2Peer()
+tp.search_n_play('Depeche mode')

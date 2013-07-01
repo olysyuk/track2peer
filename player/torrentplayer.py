@@ -10,15 +10,19 @@ from Queue import Queue
 from player import Player
 import tempfile
 
-""" from torrentplayer import *
-
-    tp = new TorrentPlayer()
-    tp.load_torrent('example.torrent')
-    tp.get_files_list() #returns list of get_files
-    tp.select_file(i) #set file that would be played
-    tp.play()
-"""
 class TorrentPlayer(Player):
+    """Plays single media file from torrent. 
+
+        Usage example:
+        from torrentplayer import *
+
+        tp = new TorrentPlayer()
+        tp.load_torrent('example.torrent')
+        tp.get_files_list() #returns list of get_files
+        tp.select_file(i) #set file that would be played
+        tp.play()   
+    """
+
     def __init__(self):
         pass
 
@@ -42,10 +46,12 @@ class TorrentPlayer(Player):
 
     _h = None #torrent file handler
 
-    def load_mli(self, mli):
-        if (mli.magnet):
+    def load_torrent_item(self, torrent_item):
+        """Play medialibrary item"""
+
+        if (torrent_item.magnet_link):
             self.start_session()
-            self._h = lt.add_magnet_uri(self._ses, mli.magnet, {'save_path':self.get_save_path()})
+            self._h = lt.add_magnet_uri(self._ses, torrent_item.magnet_link, {'save_path':self.get_save_path()})
 
             print 'downloading metadata...'
             while (not self._h.has_metadata()): time.sleep(1)
@@ -63,12 +69,6 @@ class TorrentPlayer(Player):
             logger.debug('Loaded torrent file: '+filepath);
         except IOError:
             raise Exception(filepath + " file doesn't exist")
-
-    def get_files_list(self):
-        names = []
-        for f in self._info.files():
-            names.append(f.path)
-        return names
 
     def select_file(self, i):
         """Select file number to download in future """
