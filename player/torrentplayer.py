@@ -79,6 +79,10 @@ class TorrentPlayer(Player):
 
     def play(self):
         """Starts file download and playback"""
+        if (self._player): #We are allready playing
+            self._playQ.put(TorrentPlayerBackgroundStream.MESSAGE_PLAY)
+            return
+
         self.start_session()
         if (not self._h): #If we added torrent by magnet it's allready here. Should do it more gently in future
             self._h = self._ses.add_torrent({'ti': self._info, 'save_path': self.get_save_path() })
@@ -248,10 +252,11 @@ class TorrentPlayerBackgroundStream:
     _pieces = None #tuple start,end piece
     _offsets = None #tuple offset on start and end piece
 
-    _outputcmd = 'mplayer -really-quiet -noconsolecontrols -nolirc -input file="%s" -cache 1024 -' #Mplayer cmd
-    _stream = None #Mplayer stream
+    _outputcmd = 'mplayer -slave -really-quiet -noconsolecontrols -nolirc -cache 1024 %s' #Mplayer cmd
+    _stream = None #Mplayer media stream
+    _media_file = None  #Media fifo file
     _command_stream=None #Commands stream for mplayer
-    _command_file = None #Command file for mplayer
+    
     
     _mq = None
     
@@ -270,15 +275,15 @@ class TorrentPlayerBackgroundStream:
         
 
         #Initing command fifo
-        self._command_file = tempfile.mktemp()
-        os.mkfifo(self._command_file)
+        self._media_file = tempfile.mktemp()
+        os.mkfifo(self._media_file)
 
         #executing mplayer
-        outputcmd = self._outputcmd % self._command_file
-        self._stream = Popen(outputcmd.split(' '), stdin=PIPE, stdout=None, stderr=None) #--not sure why this is not always working
+        outputcmd = self._outputcmd % self._media_file
+        self._command_stream = Popen(outputcmd.split(' '), stdin=PIPE, stdout=None, stderr=None) #--not sure why this is not always working
         
-        #attaching to command fifo
-        self._command_stream = open(self._command_file, "w", 0)
+        #attaching to media stream
+        self._stream = open(self._media_file, "w", 0)
         
         #logger.debug('Player started receiving data')
         self.rewind()
@@ -288,8 +293,8 @@ class TorrentPlayerBackgroundStream:
         self.destroy()
 
     def destroy(self):
-        self._stream.kill()
-        self._command_stream.close()
+        self._command_stream.kill()
+        self._stream.close()
         
     def rewind(self,i=0):
         i = min(i, self._pieces[1]-self._pieces[0])
@@ -315,26 +320,16 @@ class TorrentPlayerBackgroundStream:
         return buf
 
     def run(self):
-        while True:
-            try:
-                m = self._mq.get(False)
-                if (m==self.MESSAGE_DIE): break
-                if (m==self.MESSAGE_PLAY): self._is_playing = 1
-                if (m==self.MESSAGE_PAUSE): 
-                    self._is_playing = 0 if self._is_playing else 1
-                    #self._command_stream.write("volume 50 \n")
-                    #self._command_stream.flush()
-                if (m==self.MESSAGE_STOP): 
-                    self._is_playing = 0
-                    self.rewind()
-            except: pass
+        thread.start_new_thread(self.player_control,())
 
+        while True:
             if (self._is_playing):
                 buf = self.get_next_piece()
+                
                 if buf:
                     try:
                         #logger.debug('Writing %d of %d',self._current_piece-pieces[0], pieces[1]-pieces[0])
-                        self._stream.stdin.write(buf)
+                        self._stream.write(buf) 
                     except Exception, err:
                         exit(0)
                 else:
@@ -343,6 +338,27 @@ class TorrentPlayerBackgroundStream:
             time.sleep(0.1)
 
         self.destroy()
+
+    def player_control(self):
+        while True:
+            try:
+                m = self._mq.get(False)
+                if (m==self.MESSAGE_DIE): break
+                
+                if (m==self.MESSAGE_PLAY): 
+                    self._is_playing = 1
+                    self._command_stream.stdin.write("pause \n")
+
+                if (m==self.MESSAGE_PAUSE): 
+                    self._is_playing = 0 if self._is_playing else 1
+                    self._command_stream.stdin.write("pause \n")
+
+                if (m==self.MESSAGE_STOP): 
+                    self._is_playing = 0
+                    self._command_stream.stdin.write("pause \n")
+                    self.rewind()
+            except: pass
+
 
     cache = {}
     def get_piece(self,i):
