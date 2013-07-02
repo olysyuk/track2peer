@@ -6,7 +6,7 @@ class Torrent(object):
 	id = None
 	search_query = "" #Query that this media item had satisfied
 	title = "" #Title of torrent file
-	torrent_file = "" #Torrent file location relative to "torrents/" folder
+	torrent_file = "" #Torrent file location relative to "sample/" folder
 	magnet_link = "" #URI of magnet link
 	created_at = "" #Timestamp of creation
 	files = [] #Files list

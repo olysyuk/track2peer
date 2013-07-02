@@ -29,7 +29,7 @@ class TorrentPlayer(Player):
     def __del__(self):
         self._playQ.put(TorrentPlayerBackgroundStream.MESSAGE_DIE)
         self._downloadQ.put(TorrentPlayerDownloadManager.MESSAGE_DIE)
-        self._player.destroy()
+        #del self._player
         del self._download_manager
 
     _downloadQ = Queue() #Queue that forwards control messages to download process

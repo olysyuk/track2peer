@@ -29,7 +29,7 @@ class Track2Peer(object):
             sys.stdout.flush()
             time.sleep(1)
             print "\r",
-            if (self._tp.get_download_progress()==1): 
+            if (self._tp.get_download_progress()>=1): 
                 print "File is ready               "
                 break
             pass

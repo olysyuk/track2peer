@@ -46,7 +46,7 @@ class OutSearch(object):
         t.magnet_link = magnet
 
         #Getting torrent file info
-        print "Searching seeds & getting files list"
+        print "Fetching torrent metadata"
         self.loadFilesList(t)
 
         return t
@@ -88,10 +88,13 @@ class OutSearch(object):
         ses = lt.session()
         ses.listen_on(6881, 6891)
 
-        h = lt.add_magnet_uri(ses, torrent_item.magnet_link, {'save_path': './data'})
-        while (not h.has_metadata()): 
-            time.sleep(1)
-        info = h.get_torrent_info();
+        if (torrent_item.magnet_link):
+            h = lt.add_magnet_uri(ses, torrent_item.magnet_link, {'save_path': './data'})
+            while (not h.has_metadata()): 
+                time.sleep(1)
+            info = h.get_torrent_info();
+        else:
+            info = lt.torrent_info(torrent_item.torrent_file)
 
         torrent_item.set_files(info.files());
 
